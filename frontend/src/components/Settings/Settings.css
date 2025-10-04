@@ -1,0 +1,10 @@
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.settings-section p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.9);
+}

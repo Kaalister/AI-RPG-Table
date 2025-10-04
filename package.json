@@ -1,0 +1,23 @@
+{
+  "name": "ai-rpg-table",
+  "version": "1.0.0",
+  "description": "Web interface for training as a Role-Playing Game Master: create your own story, test it with AI players, and get coaching from an AI.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kaalister/AI-RPG-Table.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Kaalister/AI-RPG-Table/issues"
+  },
+  "homepage": "https://github.com/Kaalister/AI-RPG-Table#readme",
+  "dependencies": {
+    "@nestjs/cli": "^11.0.10"
+  }
+}
