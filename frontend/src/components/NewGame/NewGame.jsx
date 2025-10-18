@@ -1,5 +1,12 @@
 import React from 'react'
+import { connect } from 'react-redux'
 import './NewGame.css'
+import {
+    addGamersToGame,
+    createGame,
+    selectCreateGameStatus,
+    selectUpdateGameStatus,
+} from '../../store/gamesSlice'
 
 const createInitialCreateForm = () => ({
     name: '',
@@ -13,7 +20,8 @@ const createEmptyStatistic = () => ({
 
 const createEmptyGamerForm = () => ({
     name: '',
-    color: '',
+    color:
+        '#' + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0'),
     age: '',
     lore: '',
     statistics: [],
@@ -92,22 +100,9 @@ class NewGame extends React.Component {
         this.setState({ submitting: true, error: null, success: null })
 
         try {
-            const response = await fetch('http://localhost:3000/games', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: trimmedName,
-                    lore: trimmedLore,
-                }),
-            })
-
-            if (!response.ok) {
-                throw new Error('Impossible de créer la partie pour le moment.')
-            }
-
-            const createdGame = await response.json()
+            const createdGame = await this.props
+                .createGame({ name: trimmedName, lore: trimmedLore })
+                .unwrap()
 
             this.setState({
                 createdGame,
@@ -120,7 +115,7 @@ class NewGame extends React.Component {
         } catch (creationError) {
             this.setState({
                 error:
-                    creationError.message ||
+                    creationError?.message ||
                     'Une erreur est survenue pendant la création de la partie.',
             })
         } finally {
@@ -315,32 +310,20 @@ class NewGame extends React.Component {
         this.setState({ submitting: true, error: null })
 
         try {
-            const response = await fetch(
-                `http://localhost:3000/games/${createdGame.id}`,
-                {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        gamers: sanitizedGamers.map((gamer) => ({
-                            ...gamer,
-                            statistics:
-                                gamer.statistics && gamer.statistics.length > 0
-                                    ? gamer.statistics
-                                    : undefined,
-                        })),
-                    }),
-                },
-            )
+            const payload = sanitizedGamers.map((gamer) => ({
+                ...gamer,
+                statistics:
+                    gamer.statistics && gamer.statistics.length > 0
+                        ? gamer.statistics
+                        : undefined,
+            }))
 
-            if (!response.ok) {
-                throw new Error(
-                    'Impossible d’enregistrer les joueurs pour le moment.',
-                )
-            }
-
-            const updatedGame = await response.json()
+            const updatedGame = await this.props
+                .addGamersToGame({
+                    gameId: createdGame.id,
+                    gamers: payload,
+                })
+                .unwrap()
 
             if (typeof this.props.onCreated === 'function') {
                 this.props.onCreated(updatedGame)
@@ -378,7 +361,9 @@ class NewGame extends React.Component {
 
     renderCreateForm() {
         const { createForm, submitting, error } = this.state
-        const { onCancel } = this.props
+        const { onCancel, createStatus } = this.props
+
+        const isSubmitting = submitting || createStatus === 'loading'
 
         return (
             <>
@@ -404,7 +389,7 @@ class NewGame extends React.Component {
                             placeholder="Ex. Chroniques d'Arkanis"
                             value={createForm.name}
                             onChange={this.handleCreateFieldChange}
-                            disabled={submitting}
+                            disabled={isSubmitting}
                             maxLength={80}
                         />
                     </label>
@@ -417,7 +402,7 @@ class NewGame extends React.Component {
                             placeholder="Posez les bases de votre monde, vos factions ou vos quêtes."
                             value={createForm.lore}
                             onChange={this.handleCreateFieldChange}
-                            disabled={submitting}
+                            disabled={isSubmitting}
                             rows={5}
                             maxLength={800}
                         />
@@ -433,9 +418,9 @@ class NewGame extends React.Component {
                         <button
                             type="submit"
                             className="new-game-primary-button"
-                            disabled={submitting}
+                            disabled={isSubmitting}
                         >
-                            {submitting
+                            {isSubmitting
                                 ? 'Création en cours…'
                                 : 'Créer la partie'}
                         </button>
@@ -445,7 +430,7 @@ class NewGame extends React.Component {
                                 type="button"
                                 className="new-game-secondary-button"
                                 onClick={this.handleCancel}
-                                disabled={submitting}
+                                disabled={isSubmitting}
                             >
                                 Annuler
                             </button>
@@ -459,6 +444,9 @@ class NewGame extends React.Component {
     renderGamersForm() {
         const { gamerForms, submitting, error, success, createdGame } =
             this.state
+        const { updateStatus } = this.props
+
+        const isSubmitting = submitting || updateStatus === 'loading'
 
         return (
             <>
@@ -505,26 +493,33 @@ class NewGame extends React.Component {
                                         }
                                         placeholder="Lyra la Stratège"
                                         maxLength={60}
-                                        disabled={submitting}
+                                        disabled={isSubmitting}
                                     />
                                 </label>
 
                                 <label className="new-game-field">
                                     <span>Couleur</span>
-                                    <input
-                                        className="new-game-input"
-                                        value={gamer.color}
-                                        onChange={(event) =>
-                                            this.handleGamerFieldChange(
-                                                index,
-                                                'color',
-                                                event.target.value,
-                                            )
-                                        }
-                                        placeholder="#A855F7"
-                                        maxLength={30}
-                                        disabled={submitting}
-                                    />
+
+                                    <div
+                                        className="new-game-color-input-wrapper"
+                                        style={{
+                                            backgroundColor: gamer.color,
+                                        }}
+                                    >
+                                        <input
+                                            className="new-game-input-color"
+                                            type="color"
+                                            value={gamer.color}
+                                            onChange={(event) =>
+                                                this.handleGamerFieldChange(
+                                                    index,
+                                                    'color',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
                                 </label>
 
                                 <label className="new-game-field">
@@ -541,7 +536,7 @@ class NewGame extends React.Component {
                                         }
                                         placeholder="28"
                                         maxLength={3}
-                                        disabled={submitting}
+                                        disabled={isSubmitting}
                                         inputMode="numeric"
                                     />
                                 </label>
@@ -562,7 +557,7 @@ class NewGame extends React.Component {
                                     rows={4}
                                     maxLength={600}
                                     placeholder="Décrivez l'histoire ou la motivation du personnage."
-                                    disabled={submitting}
+                                    disabled={isSubmitting}
                                 />
                             </label>
 
@@ -575,7 +570,7 @@ class NewGame extends React.Component {
                                         onClick={() =>
                                             this.handleAddStatisticRow(index)
                                         }
-                                        disabled={submitting}
+                                        disabled={isSubmitting}
                                     >
                                         + Ajouter une statistique
                                     </button>
@@ -609,7 +604,7 @@ class NewGame extends React.Component {
                                                     }
                                                     placeholder="Force, Mana, Initiative…"
                                                     maxLength={50}
-                                                    disabled={submitting}
+                                                    disabled={isSubmitting}
                                                 />
                                             </label>
 
@@ -628,7 +623,7 @@ class NewGame extends React.Component {
                                                     }
                                                     placeholder="10"
                                                     maxLength={6}
-                                                    disabled={submitting}
+                                                    disabled={isSubmitting}
                                                     inputMode="decimal"
                                                 />
                                             </label>
@@ -642,7 +637,7 @@ class NewGame extends React.Component {
                                                         statisticIndex,
                                                     )
                                                 }
-                                                disabled={submitting}
+                                                disabled={isSubmitting}
                                             >
                                                 Retirer
                                             </button>
@@ -659,7 +654,7 @@ class NewGame extends React.Component {
                                         onClick={() =>
                                             this.handleRemoveGamerRow(index)
                                         }
-                                        disabled={submitting}
+                                        disabled={isSubmitting}
                                     >
                                         Retirer ce joueur
                                     </button>
@@ -672,7 +667,7 @@ class NewGame extends React.Component {
                         type="button"
                         className="new-game-secondary-button new-game-add-gamer"
                         onClick={this.handleAddGamerRow}
-                        disabled={submitting}
+                        disabled={isSubmitting}
                     >
                         + Ajouter un joueur
                     </button>
@@ -681,9 +676,9 @@ class NewGame extends React.Component {
                         <button
                             type="submit"
                             className="new-game-primary-button"
-                            disabled={submitting}
+                            disabled={isSubmitting}
                         >
-                            {submitting
+                            {isSubmitting
                                 ? 'Enregistrement…'
                                 : 'Enregistrer les joueurs'}
                         </button>
@@ -692,7 +687,7 @@ class NewGame extends React.Component {
                             type="button"
                             className="new-game-secondary-button"
                             onClick={this.handleSkipGamers}
-                            disabled={submitting}
+                            disabled={isSubmitting}
                         >
                             Passer cette étape
                         </button>
@@ -715,4 +710,14 @@ class NewGame extends React.Component {
     }
 }
 
-export default NewGame
+const mapStateToProps = (state) => ({
+    createStatus: selectCreateGameStatus(state),
+    updateStatus: selectUpdateGameStatus(state),
+})
+
+const mapDispatchToProps = {
+    createGame,
+    addGamersToGame,
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(NewGame)

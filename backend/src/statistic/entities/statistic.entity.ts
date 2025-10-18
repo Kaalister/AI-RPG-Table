@@ -12,6 +12,8 @@ export class Statistic {
   @Column()
   value: number;
 
-  @ManyToOne(() => Gamer, (gamer) => gamer.statistics)
+  @ManyToOne(() => Gamer, (gamer) => gamer.statistics, {
+    onDelete: 'CASCADE',
+  })
   gamer: Gamer;
 }

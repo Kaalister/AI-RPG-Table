@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Gamer } from './entities/gamer.entity';
+import { CreateGameDto } from 'src/game/dto/createGame.dto';
+import { UpdateGamerDto } from './dto/updateGamer.dto';
 
 @Injectable()
 export class GamerService {
@@ -10,7 +12,11 @@ export class GamerService {
     private gamersRepository: Repository<Gamer>,
   ) {}
 
-  update(gamerId: string, updateGamerDto: any): Promise<Gamer> {
+  create(gamer: CreateGameDto) {
+    return this.gamersRepository.save(this.gamersRepository.create(gamer));
+  }
+
+  update(gamerId: string, updateGamerDto: UpdateGamerDto): Promise<Gamer> {
     return this.gamersRepository.save({ id: gamerId, ...updateGamerDto });
   }
 

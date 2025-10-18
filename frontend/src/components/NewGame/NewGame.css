@@ -186,6 +186,91 @@
     align-items: end;
 }
 
+.new-game-existing-title {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #e2e8f0;
+}
+
+.new-game-existing-list {
+    margin: 0.5rem 0 0;
+    padding-left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: rgba(226, 232, 240, 0.8);
+}
+
+.new-game-existing-list li {
+    list-style: none;
+}
+
+
+.new-game-existing-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.new-game-existing-select {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font: inherit;
+    padding: 0.1rem 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+.new-game-existing-select:hover {
+    color: #f8fafc;
+}
+
+.new-game-existing-select:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.new-game-existing-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.new-game-existing-delete {
+    border: none;
+    background: transparent;
+    color: rgba(248, 113, 113, 0.82);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.new-game-existing-delete:hover {
+    background: rgba(248, 113, 113, 0.14);
+    color: rgba(248, 113, 113, 1);
+}
+
+.new-game-existing-delete:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.new-game-existing-hint {
+    margin: 0.75rem 0 0;
+    font-size: 0.9rem;
+    color: rgba(226, 232, 240, 0.65);
+}
+
 .new-game-tertiary-button {
     border: 1px dashed rgba(148, 163, 184, 0.45);
     background: transparent;
@@ -211,6 +296,24 @@
 
 .new-game-remove-statistic {
     justify-self: flex-start;
+}
+
+.new-game-color-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    height: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+.new-game-color-input-wrapper:hover {
+    cursor: pointer;
+}
+
+.new-game-input-color {
+    opacity: 0;
+    cursor: pointer;
 }
 
 @media (max-width: 768px) {

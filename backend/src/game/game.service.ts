@@ -1,3 +1,4 @@
+import { plainToInstance } from 'class-transformer';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -6,6 +7,7 @@ import { CreateGameDto } from './dto/createGame.dto';
 import { UpdateGameDto } from './dto/updateGame.dto';
 import { Gamer } from 'src/gamer/entities/gamer.entity';
 import { Statistic } from 'src/statistic/entities/statistic.entity';
+import { CreateGamerDto } from 'src/gamer/dto/createGamer.dto';
 
 @Injectable()
 export class GameService {
@@ -71,5 +73,30 @@ export class GameService {
     }
 
     return updatedGame;
+  }
+
+  async addGamer(gameId: string, gamer: CreateGamerDto) {
+    const currentGame = await this.gamesRepository.findOne({
+      where: { id: gameId },
+      relations: ['gamers', 'gamers.statistics'],
+    });
+
+    if (!currentGame) {
+      throw new NotFoundException(`Game with id ${gameId} not found`);
+    }
+
+    currentGame.gamers = [...currentGame.gamers, plainToInstance(Gamer, gamer)];
+
+    return this.gamesRepository.save(currentGame);
+  }
+
+  async remove(gameId: string): Promise<{ success: true }> {
+    const deleteResult = await this.gamesRepository.delete(gameId);
+
+    if (deleteResult.affected === 0) {
+      throw new NotFoundException(`Game with id ${gameId} not found`);
+    }
+
+    return { success: true };
   }
 }

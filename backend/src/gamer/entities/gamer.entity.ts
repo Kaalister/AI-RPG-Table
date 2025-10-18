@@ -31,6 +31,8 @@ export class Gamer {
   })
   statistics: Statistic[];
 
-  @ManyToOne(() => Game, (game) => game.gamers)
+  @ManyToOne(() => Game, (game) => game.gamers, {
+    onDelete: 'CASCADE',
+  })
   game: Game;
 }
