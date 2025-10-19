@@ -1,4 +1,10 @@
-import { IsEmpty, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmpty,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Game } from '../../game/entities/game.entity';
 
 export class CreateMessageDto {
@@ -9,6 +15,10 @@ export class CreateMessageDto {
   @IsOptional()
   @IsString()
   senderId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isCoaching: boolean;
 
   @IsEmpty()
   id: string;

@@ -2,11 +2,49 @@ import React from 'react'
 import './GameChat.css'
 import { connect } from 'react-redux'
 import Chat from '../Chat/Chat.jsx'
-import { selectSelectedGame } from '../../store/gamesSlice'
+import {
+    fetchGames,
+    selectGamesStatus,
+    selectSelectedGame,
+    selectSelectedGameId,
+    setSelectedGame,
+} from '../../store/gamesSlice'
 
 class GameChat extends React.Component {
-    constructor(props) {
-        super(props)
+    componentDidMount() {
+        this.ensureGamesLoaded()
+        this.ensureSelectedGame()
+    }
+
+    componentDidUpdate(prevProps) {
+        if (prevProps.status !== this.props.status) {
+            this.ensureGamesLoaded()
+        }
+
+        if (
+            prevProps.selectedGame !== this.props.selectedGame ||
+            prevProps.selectedGameId !== this.props.selectedGameId ||
+            prevProps.status !== this.props.status
+        ) {
+            this.ensureSelectedGame()
+        }
+    }
+
+    ensureGamesLoaded() {
+        const { status, fetchGames } = this.props
+
+        if (status === 'idle') {
+            fetchGames()
+        }
+    }
+
+    ensureSelectedGame() {
+        const { selectedGame, selectedGameId, status, setSelectedGame } =
+            this.props
+
+        if (!selectedGame && selectedGameId && status === 'succeeded') {
+            setSelectedGame(selectedGameId)
+        }
     }
 
     render() {
@@ -22,8 +60,8 @@ class GameChat extends React.Component {
 
         return (
             <div className="game-chat">
-                <Chat />
-                <Chat IsGameMasterChat />
+                <Chat gameId={selectedGame.id} />
+                <Chat gameId={selectedGame.id} IsGameMasterChat />
             </div>
         )
     }
@@ -31,6 +69,13 @@ class GameChat extends React.Component {
 
 const mapStateToProps = (state) => ({
     selectedGame: selectSelectedGame(state),
+    selectedGameId: selectSelectedGameId(state),
+    status: selectGamesStatus(state),
 })
 
-export default connect(mapStateToProps)(GameChat)
+const mapDispatchToProps = {
+    fetchGames,
+    setSelectedGame,
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(GameChat)

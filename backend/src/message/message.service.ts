@@ -18,11 +18,13 @@ export class MessageService {
     content: string,
     gameId: string,
     senderId: string | null = null,
+    isCoaching: boolean = false,
   ): Promise<Message> {
     const message = this.messagesRepository.create({
       content,
       senderId,
       game: { id: gameId },
+      isCoaching,
     });
     return this.messagesRepository.save(message);
   }

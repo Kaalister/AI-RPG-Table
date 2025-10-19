@@ -11,7 +11,17 @@ export class MessageController {
   }
 
   @Post()
-  create(@Body('content') content: string, @Body('gameId') gameId: string) {
-    return this.messageService.create(content, gameId);
+  create(
+    @Body('content') content: string,
+    @Body('gameId') gameId: string,
+    @Body('senderId') senderId?: string | null,
+    @Body('isCoaching') isCoaching?: boolean,
+  ) {
+    return this.messageService.create(
+      content,
+      gameId,
+      senderId ?? null,
+      isCoaching,
+    );
   }
 }

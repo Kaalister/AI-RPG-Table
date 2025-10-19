@@ -29,6 +29,53 @@
     backdrop-filter: blur(6px);
 }
 
+.chat-message-player,
+.chat-message-coach {
+    align-self: flex-end;
+    background: linear-gradient(
+        135deg,
+        rgba(124, 58, 237, 0.25),
+        rgba(96, 165, 250, 0.25)
+    );
+    border: 1px solid rgba(129, 140, 248, 0.45);
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
+}
+
+.chat-message-ai {
+    align-self: flex-start;
+    background: rgba(30, 64, 175, 0.22);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    box-shadow: 0 6px 18px rgba(30, 64, 175, 0.25);
+}
+
+.chat-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+    color: rgba(226, 232, 240, 0.75);
+    font-size: 0.95rem;
+}
+
+.chat-loading-spinner {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid rgba(148, 163, 184, 0.35);
+    border-top-color: rgba(129, 140, 248, 0.9);
+    animation: chat-spin 0.9s linear infinite;
+}
+
+.chat-error {
+    margin-top: -0.75rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: rgba(254, 226, 226, 0.95);
+    font-size: 0.9rem;
+}
+
 .chat-empty {
     color: rgba(226, 232, 240, 0.6);
     text-align: center;
@@ -79,6 +126,21 @@
 
 .primary-button:active {
     transform: translateY(0);
+}
+
+.primary-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+@keyframes chat-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media (max-width: 768px) {

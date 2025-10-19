@@ -1,5 +1,35 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
 
+const SELECTED_GAME_STORAGE_KEY = 'selectedGameId'
+
+const getStoredSelectedGameId = () => {
+    if (typeof window === 'undefined') {
+        return null
+    }
+
+    try {
+        return localStorage.getItem(SELECTED_GAME_STORAGE_KEY)
+    } catch (error) {
+        return null
+    }
+}
+
+const persistSelectedGameId = (gameId) => {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    try {
+        if (gameId !== null && gameId !== undefined) {
+            localStorage.setItem(SELECTED_GAME_STORAGE_KEY, String(gameId))
+        } else {
+            localStorage.removeItem(SELECTED_GAME_STORAGE_KEY)
+        }
+    } catch (error) {
+        // safely ignore storage errors
+    }
+}
+
 const handleResponse = async (response) => {
     if (!response.ok) {
         const message = await response.text()
@@ -182,6 +212,7 @@ const initialState = {
     deleteStatus: 'idle',
     deleteError: null,
     selectedGame: null,
+    selectedGameId: getStoredSelectedGameId(),
 }
 
 const gamesSlice = createSlice({
@@ -193,13 +224,29 @@ const gamesSlice = createSlice({
         },
         setSelectedGame(state, action) {
             const gameId = action.payload
+            const normalizedGameId =
+                gameId === null || gameId === undefined ? null : String(gameId)
+
+            state.selectedGameId = normalizedGameId
+
+            if (!normalizedGameId) {
+                state.selectedGame = null
+                persistSelectedGameId(null)
+                return
+            }
 
             const foundGame =
-                state.items.find((game) => game.id === gameId) || null
+                state.items.find(
+                    (game) => String(game.id) === normalizedGameId,
+                ) || null
+
             state.selectedGame = foundGame
+            persistSelectedGameId(normalizedGameId)
         },
         clearSelectedGame(state) {
             state.selectedGame = null
+            state.selectedGameId = null
+            persistSelectedGameId(null)
         },
     },
     extraReducers: (builder) => {
@@ -212,11 +259,18 @@ const gamesSlice = createSlice({
                 state.status = 'succeeded'
                 state.items = action.payload
 
-                if (state.selectedGame) {
+                const targetId = state.selectedGame
+                    ? String(state.selectedGame.id)
+                    : state.selectedGameId
+
+                if (targetId) {
                     const refreshedGame = state.items.find(
-                        (game) => game.id === state.selectedGame.id,
+                        (game) => String(game.id) === targetId,
                     )
+
                     state.selectedGame = refreshedGame || null
+                    state.selectedGameId = refreshedGame ? targetId : null
+                    persistSelectedGameId(refreshedGame ? targetId : null)
                 }
             })
             .addCase(fetchGames.rejected, (state, action) => {
@@ -232,6 +286,8 @@ const gamesSlice = createSlice({
                 state.createStatus = 'succeeded'
                 state.items = [action.payload, ...state.items]
                 state.selectedGame = action.payload
+                state.selectedGameId = String(action.payload.id)
+                persistSelectedGameId(state.selectedGameId)
             })
             .addCase(createGame.rejected, (state, action) => {
                 state.createStatus = 'failed'
@@ -249,6 +305,8 @@ const gamesSlice = createSlice({
                     game.id === updatedGame.id ? updatedGame : game,
                 )
                 state.selectedGame = updatedGame
+                state.selectedGameId = String(updatedGame.id)
+                persistSelectedGameId(state.selectedGameId)
             })
             .addCase(addGamersToGame.rejected, (state, action) => {
                 state.updateStatus = 'failed'
@@ -298,6 +356,8 @@ const gamesSlice = createSlice({
                 )
                 if (state.selectedGame?.id === updatedGame.id) {
                     state.selectedGame = updatedGame
+                    state.selectedGameId = String(updatedGame.id)
+                    persistSelectedGameId(state.selectedGameId)
                 }
             })
             .addCase(updateGame.rejected, (state, action) => {
@@ -315,6 +375,8 @@ const gamesSlice = createSlice({
                 state.items = state.items.filter((game) => game.id !== gameId)
                 if (state.selectedGame?.id === gameId) {
                     state.selectedGame = null
+                    state.selectedGameId = null
+                    persistSelectedGameId(null)
                 }
             })
             .addCase(deleteGame.rejected, (state, action) => {
@@ -361,6 +423,7 @@ export const selectGames = (state) => state.games.items
 export const selectGamesStatus = (state) => state.games.status
 export const selectGamesError = (state) => state.games.error
 export const selectSelectedGame = (state) => state.games.selectedGame
+export const selectSelectedGameId = (state) => state.games.selectedGameId
 export const selectCreateGameStatus = (state) => state.games.createStatus
 export const selectCreateGameError = (state) => state.games.createError
 export const selectUpdateGameStatus = (state) => state.games.updateStatus

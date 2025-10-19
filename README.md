@@ -36,11 +36,6 @@ sqlite
 
 ### Front
 
--   [x] Ajouter Redux Tool Kit dans le front pour gerer les requetes
--   [x] Page Chat : Si aucune game en cours demander a selectionner un jeux
--   [x] Page Home : Permettre la selection d'une partie
--   [x] Page Home : Permettre de modifier une game (Personnages + partie)
-
 ### Back
 
 -   [ ] Ajouter les IA Joueurs sur une partie en faisant un Prompt de debut de partie + stocker les messages dans la bdd

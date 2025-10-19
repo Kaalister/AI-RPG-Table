@@ -69,9 +69,11 @@ class Home extends React.Component {
     handleSelectGame(gameId) {
         const selectedGame = this.props.selectedGame
 
-        if (selectedGame && selectedGame.id === gameId)
+        if (selectedGame && selectedGame.id === gameId) {
             this.props.setSelectedGame(null)
-        else this.props.setSelectedGame(gameId)
+        } else {
+            this.props.setSelectedGame(gameId)
+        }
     }
 
     openEditGame(event, gameId) {
