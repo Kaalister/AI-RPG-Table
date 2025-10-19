@@ -39,7 +39,7 @@ sqlite
 -   [x] Ajouter Redux Tool Kit dans le front pour gerer les requetes
 -   [x] Page Chat : Si aucune game en cours demander a selectionner un jeux
 -   [x] Page Home : Permettre la selection d'une partie
--   [/] Page Home : Permettre de modifier une game (Personnages + partie) (Manque la modification et la deselection du joueur)
+-   [x] Page Home : Permettre de modifier une game (Personnages + partie)
 
 ### Back
 

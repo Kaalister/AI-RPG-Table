@@ -3,6 +3,7 @@ import { connect } from 'react-redux'
 import '../NewGame/NewGame.css'
 import {
     addGamersToGame,
+    updateGamerInGame,
     deleteGamerFromGame,
     selectUpdateGameStatus,
 } from '../../store/gamesSlice'
@@ -124,11 +125,14 @@ class ManagePlayers extends React.Component {
 
     handleEditPlayer(gamerId) {
         const { gamers } = this.props.game || []
+        const { gamerForm } = this.state
         const gamerToEdit = gamers.find((gamer) => gamer.id === gamerId)
 
         if (!gamerToEdit) return
 
-        this.setState({ gamerForm: { ...gamerToEdit } })
+        if (gamerForm.id === gamerToEdit.id)
+            this.setState({ gamerForm: createEmptyGamerForm() })
+        else this.setState({ gamerForm: { ...gamerToEdit } })
     }
 
     async handleDeletePlayer(event, gamerId) {
@@ -194,10 +198,16 @@ class ManagePlayers extends React.Component {
         }
 
         try {
-            if (gamerForm.id) {
-            } else {
-                this.setState({ submitting: true, error: null })
+            this.setState({ submitting: true, error: null })
 
+            if (gamerForm.id) {
+                await this.props
+                    .updateGamerInGame({
+                        gameId: game.id,
+                        gamer: gamerForm,
+                    })
+                    .unwrap()
+            } else {
                 await this.props
                     .addGamersToGame({
                         gameId: game.id,
@@ -230,6 +240,7 @@ class ManagePlayers extends React.Component {
         const { game, updateStatus } = this.props
         const existingGamers = game?.gamers || []
         const isBusy = this.state.submitting || updateStatus === 'loading'
+        const activeGamerId = this.state.gamerForm?.id
 
         if (existingGamers.length === 0) return null
 
@@ -239,35 +250,54 @@ class ManagePlayers extends React.Component {
                     Joueurs déjà enregistrés
                 </h3>
                 <ul className="new-game-existing-list">
-                    {existingGamers.map((gamer) => (
-                        <li key={gamer.id} className="new-game-existing-item">
-                            <button
-                                type="button"
-                                className="new-game-existing-select"
-                                onClick={() => this.handleEditPlayer(gamer.id)}
-                                disabled={isBusy}
+                    {existingGamers.map((gamer) => {
+                        const isActive = activeGamerId === gamer.id
+
+                        return (
+                            <li
+                                key={gamer.id}
+                                className={`new-game-existing-item${
+                                    isActive
+                                        ? ' new-game-existing-item-active'
+                                        : ''
+                                }`}
                             >
-                                <span
-                                    className="new-game-existing-dot"
-                                    style={{ backgroundColor: gamer.color }}
-                                />
-                                <strong style={{ color: gamer.color }}>
-                                    {gamer.name}
-                                </strong>
-                            </button>
-                            <button
-                                type="button"
-                                className="new-game-existing-delete"
-                                onClick={(event) =>
-                                    this.handleDeletePlayer(event, gamer.id)
-                                }
-                                disabled={isBusy}
-                                aria-label={`Supprimer ${gamer.name}`}
-                            >
-                                <TrashIcon />
-                            </button>
-                        </li>
-                    ))}
+                                <button
+                                    type="button"
+                                    className={`new-game-existing-select${
+                                        isActive
+                                            ? ' new-game-existing-select-active'
+                                            : ''
+                                    }`}
+                                    onClick={() =>
+                                        this.handleEditPlayer(gamer.id)
+                                    }
+                                    disabled={isBusy}
+                                >
+                                    <span
+                                        className="new-game-existing-dot"
+                                        style={{
+                                            backgroundColor: gamer.color,
+                                        }}
+                                    />
+                                    <strong style={{ color: gamer.color }}>
+                                        {gamer.name}
+                                    </strong>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="new-game-existing-delete"
+                                    onClick={(event) =>
+                                        this.handleDeletePlayer(event, gamer.id)
+                                    }
+                                    disabled={isBusy}
+                                    aria-label={`Supprimer ${gamer.name}`}
+                                >
+                                    <TrashIcon />
+                                </button>
+                            </li>
+                        )
+                    })}
                 </ul>
                 <p className="new-game-existing-hint">
                     Les joueurs ajoutés ci-dessous viendront compléter cette
@@ -494,6 +524,7 @@ const mapStateToProps = (state) => ({
 
 const mapDispatchToProps = {
     addGamersToGame,
+    updateGamerInGame,
     deleteGamerFromGame,
 }
 

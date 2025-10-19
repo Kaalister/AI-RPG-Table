@@ -205,34 +205,46 @@
     list-style: none;
 }
 
-
 .new-game-existing-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 12px;
+    transition: background-color 160ms ease, box-shadow 160ms ease,
+        border-color 160ms ease;
 }
 
 .new-game-existing-select {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    background: transparent;
-    border: none;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid transparent;
     color: inherit;
     font: inherit;
-    padding: 0.1rem 0;
+    padding: 0.35rem 0.65rem;
     cursor: pointer;
     text-align: left;
-}
-
-.new-game-existing-select:hover {
-    color: #f8fafc;
+    border-radius: 999px;
+    transition: color 160ms ease, border-color 160ms ease,
+        background-color 160ms ease, box-shadow 160ms ease;
 }
 
 .new-game-existing-select:disabled {
     cursor: not-allowed;
     opacity: 0.65;
+}
+
+.new-game-existing-item-active {
+    background: rgba(88, 28, 135, 0.18);
+    border: 1px solid rgba(99, 102, 241, 0.45);
+    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
+}
+
+.new-game-existing-item-active .new-game-existing-delete {
+    color: rgba(248, 113, 113, 0.95);
 }
 
 .new-game-existing-dot {

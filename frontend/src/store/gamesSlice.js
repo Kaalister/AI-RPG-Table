@@ -73,6 +73,30 @@ export const addGamersToGame = createAsyncThunk(
     },
 )
 
+export const updateGamerInGame = createAsyncThunk(
+    'games/updateGamer',
+    async ({ gameId, gamer }, { rejectWithValue }) => {
+        try {
+            const response = await fetch(
+                `${import.meta.env.VITE_URL_API}/gamers/${gamer.id}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(gamer),
+                },
+            )
+
+            return await handleResponse(response)
+        } catch (error) {
+            return rejectWithValue(
+                error.message || 'Erreur lors de la mise à jour du joueur.',
+            )
+        }
+    },
+)
+
 export const deleteGamerFromGame = createAsyncThunk(
     'games/deleteGamerFromGame',
     async ({ gameId, gamerId }, { rejectWithValue }) => {
@@ -298,6 +322,33 @@ const gamesSlice = createSlice({
                 state.deleteError =
                     action.payload || 'Impossible de supprimer la partie.'
             })
+            .addCase(updateGamerInGame.pending, (state) => {
+                state.updateStatus = 'loading'
+                state.updateError = null
+            })
+            .addCase(updateGamerInGame.fulfilled, (state, action) => {
+                state.updateStatus = 'succeeded'
+                const updatedGamer = action.payload
+                state.items = state.items.map((game) => {
+                    if (
+                        !game.gamers ||
+                        !game.gamers.find((g) => g.id === updatedGamer.id)
+                    )
+                        return game
+
+                    return {
+                        ...game,
+                        gamers: game.gamers.map((gamer) =>
+                            gamer.id === updatedGamer.id ? updatedGamer : gamer,
+                        ),
+                    }
+                })
+            })
+            .addCase(updateGamerInGame.rejected, (state, action) => {
+                state.updateStatus = 'failed'
+                state.updateError =
+                    action.payload || 'Impossible de mettre à jour le joueur.'
+            })
     },
 })
 
@@ -316,3 +367,5 @@ export const selectUpdateGameStatus = (state) => state.games.updateStatus
 export const selectUpdateGameError = (state) => state.games.updateError
 export const selectDeleteGameStatus = (state) => state.games.deleteStatus
 export const selectDeleteGameError = (state) => state.games.deleteError
+export const selectUpdateGamerStatus = (state) => state.games.updateStatus
+export const selectUpdateGamerError = (state) => state.games.updateError
