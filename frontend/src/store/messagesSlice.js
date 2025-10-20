@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import { io } from 'socket.io-client'
 
 const handleResponse = async (response) => {
     if (!response.ok) {
@@ -10,6 +11,34 @@ const handleResponse = async (response) => {
 }
 
 const channelKey = (gameId, channel) => `${gameId || 'unknown'}:${channel}`
+
+const SOCKET_EVENT_MESSAGE_CREATED = 'message.created'
+
+let socket = null
+let subscribedGameId = null
+
+const getSocketBaseUrl = () => {
+    const fallbackOrigin =
+        typeof window !== 'undefined' ? window.location.origin : undefined
+
+    const configuredUrl =
+        import.meta.env.VITE_URL_SOCKET || import.meta.env.VITE_URL_API
+
+    if (!configuredUrl) {
+        if (fallbackOrigin) {
+            return fallbackOrigin
+        }
+
+        throw new Error('URL API non définie pour la connexion temps réel.')
+    }
+
+    try {
+        const parsedUrl = new URL(configuredUrl, fallbackOrigin)
+        return `${parsedUrl.protocol}//${parsedUrl.host}`
+    } catch (error) {
+        return configuredUrl.replace(/\/$/, '')
+    }
+}
 
 export const fetchMessagesByGame = createAsyncThunk(
     'messages/fetchByGame',
@@ -69,6 +98,8 @@ const initialState = {
     sendError: null,
     aiStatusByChannel: {},
     aiError: null,
+    socketStatus: 'disconnected',
+    socketError: null,
 }
 
 const messagesSlice = createSlice({
@@ -78,6 +109,39 @@ const messagesSlice = createSlice({
         clearMessagesError(state) {
             state.sendError = null
             state.aiError = null
+            state.socketError = null
+        },
+        messageReceived(state, action) {
+            const incomingMessage = action.payload
+            const gameId = incomingMessage?.gameId || incomingMessage?.game?.id
+
+            if (!gameId) return
+
+            if (!state.messagesByGame[gameId]) state.messagesByGame[gameId] = []
+
+            const existingIndex = state.messagesByGame[gameId].findIndex(
+                (message) => message.id === incomingMessage.id,
+            )
+
+            if (existingIndex >= 0) {
+                state.messagesByGame[gameId][existingIndex] = {
+                    ...state.messagesByGame[gameId][existingIndex],
+                    ...incomingMessage,
+                }
+            } else state.messagesByGame[gameId].push(incomingMessage)
+
+            const statusKey = channelKey(
+                gameId,
+                incomingMessage.isCoaching ? 'coach' : 'player',
+            )
+
+            state.sendStatusByChannel[statusKey] = 'succeeded'
+        },
+        setSocketStatus(state, action) {
+            state.socketStatus = action.payload
+        },
+        setSocketError(state, action) {
+            state.socketError = action.payload
         },
     },
     extraReducers: (builder) => {
@@ -99,36 +163,139 @@ const messagesSlice = createSlice({
                     action.payload || 'Impossible de charger les messages.'
             })
             .addCase(sendMessageToGame.pending, (state, action) => {
-                const { gameId, senderId } = action.meta.arg
-                state.sendStatusByChannel[channelKey(gameId, senderId)] =
-                    'loading'
+                const { gameId, isCoaching } = action.meta.arg
+                state.sendStatusByChannel[
+                    channelKey(gameId, isCoaching ? 'coach' : 'player')
+                ] = 'loading'
                 state.sendError = null
             })
             .addCase(sendMessageToGame.fulfilled, (state, action) => {
-                const { gameId, message } = action.payload
-                const senderId =
-                    message?.senderId || action.meta.arg?.senderId || 'player'
-                if (!state.messagesByGame[gameId]) {
-                    state.messagesByGame[gameId] = []
-                }
-                state.messagesByGame[gameId] = [
-                    ...state.messagesByGame[gameId],
-                    message,
-                ]
-                state.sendStatusByChannel[channelKey(gameId, senderId)] =
-                    'succeeded'
+                const { gameId } = action.payload
+                const { isCoaching } = action.meta.arg
+                const statusKey = channelKey(
+                    gameId,
+                    isCoaching ? 'coach' : 'player',
+                )
+
+                state.sendStatusByChannel[statusKey] = 'succeeded'
             })
             .addCase(sendMessageToGame.rejected, (state, action) => {
-                const { gameId, senderId } = action.meta.arg
-                state.sendStatusByChannel[channelKey(gameId, senderId)] =
-                    'failed'
+                const { gameId, isCoaching } = action.meta.arg
+                state.sendStatusByChannel[
+                    channelKey(gameId, isCoaching ? 'coach' : 'player')
+                ] = 'failed'
                 state.sendError =
                     action.payload || "Impossible d'envoyer le message."
             })
     },
 })
 
-export const { clearMessagesError } = messagesSlice.actions
+const { clearMessagesError, messageReceived, setSocketStatus, setSocketError } =
+    messagesSlice.actions
+
+const ensureSocketConnection = (dispatch) => {
+    if (socket) return socket
+
+    const socketUrl = getSocketBaseUrl()
+
+    socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        withCredentials: true,
+        path: '/socket.io',
+    })
+
+    const handleMessage = (payload) => {
+        dispatch(messageReceived(payload))
+    }
+
+    socket.on('connect', () => {
+        dispatch(setSocketStatus('connected'))
+        dispatch(setSocketError(null))
+
+        if (subscribedGameId) {
+            socket.emit('joinGame', { gameId: subscribedGameId })
+        }
+    })
+
+    socket.on('disconnect', () => {
+        dispatch(setSocketStatus('disconnected'))
+    })
+
+    socket.on('connect_error', (error) => {
+        dispatch(setSocketStatus('error'))
+        dispatch(
+            setSocketError(
+                error?.message ||
+                    'Impossible de se connecter au serveur en temps réel.',
+            ),
+        )
+    })
+
+    socket.on(SOCKET_EVENT_MESSAGE_CREATED, handleMessage)
+
+    return socket
+}
+
+const leaveCurrentGameRoom = () => {
+    if (socket && subscribedGameId) {
+        socket.emit('leaveGame', { gameId: subscribedGameId })
+        subscribedGameId = null
+    }
+}
+
+export const subscribeToMessages = (gameId) => (dispatch) => {
+    if (!gameId) {
+        return
+    }
+
+    if (!socket || !socket.connected) {
+        dispatch(setSocketStatus('connecting'))
+    }
+    dispatch(setSocketError(null))
+
+    try {
+        const nextGameId = String(gameId)
+        const socketInstance = ensureSocketConnection(dispatch)
+
+        if (subscribedGameId && subscribedGameId !== nextGameId) {
+            if (socketInstance.connected) {
+                socketInstance.emit('leaveGame', { gameId: subscribedGameId })
+            }
+        }
+
+        subscribedGameId = nextGameId
+
+        if (socketInstance.connected) {
+            socketInstance.emit('joinGame', { gameId: nextGameId })
+        }
+    } catch (error) {
+        dispatch(setSocketStatus('error'))
+        dispatch(
+            setSocketError(
+                error instanceof Error
+                    ? error.message
+                    : 'Connexion temps réel impossible.',
+            ),
+        )
+    }
+}
+
+export const disconnectMessagesSocket = () => (dispatch) => {
+    if (!socket) {
+        return
+    }
+
+    leaveCurrentGameRoom()
+
+    socket.off(SOCKET_EVENT_MESSAGE_CREATED)
+    socket.disconnect()
+    socket = null
+
+    dispatch(setSocketStatus('disconnected'))
+    dispatch(setSocketError(null))
+}
+
+export { clearMessagesError }
 
 export default messagesSlice.reducer
 
@@ -146,7 +313,9 @@ export const selectMessagesFetchStatus = (state, gameId) =>
     state.messages.fetchStatusByGame[gameId] || 'idle'
 
 export const selectSendStatusForChannel = (state, gameId, isCoaching) =>
-    state.messages.sendStatusByChannel[channelKey(gameId, isCoaching)] || 'idle'
+    state.messages.sendStatusByChannel[
+        channelKey(gameId, isCoaching ? 'coach' : 'player')
+    ] || 'idle'
 
 export const selectAiStatusForChannel = (state, gameId, isCoaching) =>
     state.messages.aiStatusByChannel[channelKey(gameId, isCoaching)] || 'idle'
@@ -157,3 +326,7 @@ export const selectMessagesError = (state, gameId) =>
 export const selectSendError = (state) => state.messages.sendError
 
 export const selectAiError = (state) => state.messages.aiError
+
+export const selectSocketStatus = (state) => state.messages.socketStatus
+
+export const selectSocketError = (state) => state.messages.socketError

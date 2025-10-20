@@ -10,8 +10,10 @@ import {
     selectMessagesForChannel,
     selectSendError,
     selectSendStatusForChannel,
+    selectSocketError,
     sendMessageToGame,
 } from '../../store/messagesSlice'
+import { selectSelectedGame } from '../../store/gamesSlice'
 
 class Chat extends React.Component {
     constructor(props) {
@@ -67,7 +69,10 @@ class Chat extends React.Component {
         }
 
         try {
-            this.setState({ localError: null })
+            this.setState({
+                localError: null,
+                input: '',
+            })
             await this.props
                 .sendMessageToGame({
                     gameId,
@@ -76,8 +81,6 @@ class Chat extends React.Component {
                     isCoaching: !!this.props.IsGameMasterChat,
                 })
                 .unwrap()
-
-            this.setState({ input: '' })
         } catch (error) {
             this.setState({
                 localError:
@@ -104,6 +107,8 @@ class Chat extends React.Component {
             sendError,
             aiError,
             fetchError,
+            socketError,
+            selectedGame,
         } = this.props
 
         const { localError, input } = this.state
@@ -114,7 +119,12 @@ class Chat extends React.Component {
             : 'Racontez la prochaine étape aux joueurs…'
 
         const composedError =
-            localError || sendError || aiError || fetchError || null
+            localError ||
+            sendError ||
+            aiError ||
+            fetchError ||
+            socketError ||
+            null
 
         return (
             <section
@@ -132,16 +142,33 @@ class Chat extends React.Component {
                         </div>
                     ) : (
                         messages.map((msg, index) => {
-                            const sender = msg.senderId || 'player'
-                            const isAiMessage = sender.includes('ai')
+                            const sender = msg.senderId
+                            const isAiMessage = msg.senderId !== 'MJ'
+                            const isMjMessage = msg.senderId === 'MJ'
                             const messageClass = `chat-message chat-message-${
-                                isAiMessage ? 'ai' : sender
+                                isAiMessage ? 'ai' : isMjMessage ? 'mj' : sender
                             }`
+                            let gamer =
+                                msg.senderId !== 'MJ'
+                                    ? selectedGame?.gamers?.find(
+                                          (g) => g.id === msg.senderId,
+                                      )
+                                    : null
+
                             return (
                                 <div
                                     key={msg.id || `message-${index}`}
                                     className={messageClass}
+                                    style={{
+                                        backgroundColor:
+                                            `${gamer?.color}70` || '',
+                                        borderColor: gamer?.color || '',
+                                    }}
                                 >
+                                    <div className="chat-message-name">
+                                        {gamer?.name}{' '}
+                                        {msg.senderId === 'ai-coach' && 'Coach'}
+                                    </div>
                                     {msg.content || msg.text}
                                 </div>
                             )
@@ -168,15 +195,19 @@ class Chat extends React.Component {
                         onKeyDown={this.handleKeyDown}
                         placeholder={placeholder}
                         className="chat-input"
-                        disabled={isSending || isThinking}
+                        disabled={isSending}
                     />
                     <button
                         type="button"
                         className="primary-button"
                         onClick={this.handleSend}
-                        disabled={isSending || isThinking || !input.trim()}
+                        disabled={isSending || !input.trim()}
                     >
-                        {isSending ? 'Envoi…' : 'Envoyer'}
+                        {isSending
+                            ? 'Envoi…'
+                            : isThinking
+                            ? 'Réflexion…'
+                            : 'Envoyer'}
                     </button>
                 </div>
             </section>
@@ -207,6 +238,8 @@ const mapStateToProps = (state, ownProps) => {
         fetchError: selectMessagesError(state, gameId),
         sendError: selectSendError(state),
         aiError: selectAiError(state),
+        socketError: selectSocketError(state),
+        selectedGame: selectSelectedGame(state),
     }
 }
 

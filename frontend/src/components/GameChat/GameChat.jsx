@@ -9,11 +9,16 @@ import {
     selectSelectedGameId,
     setSelectedGame,
 } from '../../store/gamesSlice'
+import {
+    subscribeToMessages,
+    disconnectMessagesSocket,
+} from '../../store/messagesSlice'
 
 class GameChat extends React.Component {
     componentDidMount() {
         this.ensureGamesLoaded()
         this.ensureSelectedGame()
+        this.ensureMessagesSubscription()
     }
 
     componentDidUpdate(prevProps) {
@@ -28,6 +33,14 @@ class GameChat extends React.Component {
         ) {
             this.ensureSelectedGame()
         }
+
+        if (prevProps.selectedGame?.id !== this.props.selectedGame?.id) {
+            this.ensureMessagesSubscription(prevProps)
+        }
+    }
+
+    componentWillUnmount() {
+        this.props.disconnectMessagesSocket()
     }
 
     ensureGamesLoaded() {
@@ -44,6 +57,19 @@ class GameChat extends React.Component {
 
         if (!selectedGame && selectedGameId && status === 'succeeded') {
             setSelectedGame(selectedGameId)
+        }
+    }
+
+    ensureMessagesSubscription(prevProps = {}) {
+        const previousGameId = prevProps?.selectedGame?.id
+        const currentGameId = this.props.selectedGame?.id
+
+        if (currentGameId && previousGameId !== currentGameId) {
+            this.props.subscribeToMessages(currentGameId)
+        }
+
+        if (!currentGameId && previousGameId) {
+            this.props.disconnectMessagesSocket()
         }
     }
 
@@ -76,6 +102,8 @@ const mapStateToProps = (state) => ({
 const mapDispatchToProps = {
     fetchGames,
     setSelectedGame,
+    subscribeToMessages,
+    disconnectMessagesSocket,
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(GameChat)
