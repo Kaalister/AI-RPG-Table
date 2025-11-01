@@ -57,7 +57,7 @@ export const fetchGames = createAsyncThunk(
 
 export const createGame = createAsyncThunk(
     'games/create',
-    async ({ name, lore }, { rejectWithValue }) => {
+    async ({ name, lore, statisticTypes }, { rejectWithValue }) => {
         try {
             const response = await fetch(
                 `${import.meta.env.VITE_URL_API}/games`,
@@ -66,7 +66,7 @@ export const createGame = createAsyncThunk(
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ name, lore }),
+                    body: JSON.stringify({ name, lore, statisticTypes }),
                 },
             )
 
@@ -81,16 +81,16 @@ export const createGame = createAsyncThunk(
 
 export const addGamersToGame = createAsyncThunk(
     'games/addGamer',
-    async ({ gameId, gamer }, { rejectWithValue }) => {
+    async ({ gameId, gamers }, { rejectWithValue }) => {
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_URL_API}/games/${gameId}/addGamer`,
+                `${import.meta.env.VITE_URL_API}/games/${gameId}/addGamers`,
                 {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(gamer),
+                    body: JSON.stringify(gamers),
                 },
             )
 

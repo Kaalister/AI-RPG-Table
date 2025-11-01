@@ -16,6 +16,7 @@ class EditGame extends React.Component {
         this.state = {
             name: game?.name || '',
             lore: game?.lore || '',
+            statisticTypes: game?.statisticTypes || [],
             submitting: false,
             error: null,
         }
@@ -41,11 +42,37 @@ class EditGame extends React.Component {
         this.setState({ [name]: value, error: null })
     }
 
+    handleAddStatisticRow() {
+        this.setState((prevState) => ({
+            statisticTypes: [...prevState.statisticTypes, { name: '' }],
+        }))
+    }
+
+    handleRemoveStatisticRow(index) {
+        this.setState((prevState) => ({
+            statisticTypes: prevState.statisticTypes.filter(
+                (_, i) => i !== index,
+            ),
+        }))
+    }
+
+    handleStatisticTypesFieldChange(index, field, value) {
+        this.setState((prevState) => {
+            const updatedStatisticTypes = prevState.statisticTypes.map(
+                (statistic, i) => {
+                    if (i === index) return { ...statistic, [field]: value }
+                    return statistic
+                },
+            )
+            return { statisticTypes: updatedStatisticTypes }
+        })
+    }
+
     async handleSubmit(event) {
         event.preventDefault()
 
         const { game, onSaved } = this.props
-        const { name, lore } = this.state
+        const { name, lore, statisticTypes } = this.state
         const trimmedName = name.trim()
         const trimmedLore = lore.trim()
 
@@ -59,6 +86,18 @@ class EditGame extends React.Component {
             return
         }
 
+        const trimmedStatisticTypes = statisticTypes.map((stat) => ({
+            name: stat.name.trim(),
+        }))
+
+        if (trimmedStatisticTypes.some((stat) => !stat.name)) {
+            this.setState({
+                error: 'Chaque statistique doit avoir un nom valide.',
+                success: null,
+            })
+            return
+        }
+
         this.setState({ submitting: true, error: null })
 
         try {
@@ -68,6 +107,7 @@ class EditGame extends React.Component {
                     data: {
                         name: trimmedName,
                         lore: trimmedLore,
+                        statisticTypes: trimmedStatisticTypes,
                     },
                 })
                 .unwrap()
@@ -95,7 +135,7 @@ class EditGame extends React.Component {
     }
 
     render() {
-        const { name, lore, submitting, error } = this.state
+        const { name, lore, statisticTypes, submitting, error } = this.state
         const { updateStatus, updateError } = this.props
         const isSubmitting = submitting || updateStatus === 'loading'
         const displayError =
@@ -140,6 +180,65 @@ class EditGame extends React.Component {
                             maxLength={800}
                         />
                     </label>
+
+                    <div className="new-game-statistics">
+                        <div className="new-game-statistics-header">
+                            <span>Statistiques</span>
+                            <button
+                                type="button"
+                                className="new-game-tertiary-button"
+                                onClick={() => this.handleAddStatisticRow()}
+                                disabled={isSubmitting}
+                            >
+                                + Ajouter une statistique
+                            </button>
+                        </div>
+
+                        {statisticTypes.length === 0 && (
+                            <p className="new-game-statistics-empty">
+                                Ajoutez des attributs comme la Force ou le Mana
+                                pour cette partie.
+                            </p>
+                        )}
+
+                        {statisticTypes.map((statistic, statisticIndex) => (
+                            <div
+                                key={statisticIndex}
+                                className="new-game-statistics-row"
+                            >
+                                <label className="new-game-field">
+                                    <span>Nom</span>
+                                    <input
+                                        className="new-game-input"
+                                        value={statistic.name}
+                                        onChange={(event) =>
+                                            this.handleStatisticTypesFieldChange(
+                                                statisticIndex,
+                                                'name',
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="Force, Mana, Initiative…"
+                                        maxLength={50}
+                                        disabled={isSubmitting}
+                                    />
+                                </label>
+
+                                <button
+                                    type="button"
+                                    className="new-game-tertiary-button new-game-remove-statistic"
+                                    onClick={() =>
+                                        this.handleRemoveStatisticRow(
+                                            statisticIndex,
+                                        )
+                                    }
+                                    disabled={isSubmitting}
+                                >
+                                    Retirer
+                                </button>
+                            </div>
+                        ))}
+                    </div>
 
                     {displayError && (
                         <div className="new-game-message new-game-message-error">

@@ -8,9 +8,8 @@ import {
     selectUpdateGameStatus,
 } from '../../store/gamesSlice'
 
-const createInitialCreateForm = () => ({
+const createEmptyStatisticType = () => ({
     name: '',
-    lore: '',
 })
 
 const createEmptyStatistic = () => ({
@@ -18,19 +17,31 @@ const createEmptyStatistic = () => ({
     value: '',
 })
 
-const createEmptyGamerForm = () => ({
+const createInitialCreateForm = () => ({
+    name: '',
+    lore: '',
+    statisticTypes: [],
+})
+
+const createEmptyGamerForm = (getStatisticFromStatisticTypes) => ({
     name: '',
     color:
         '#' + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0'),
     age: '',
     lore: '',
-    statistics: [],
+    physical_description: '',
+    personality: '',
+    statistics: getStatisticFromStatisticTypes
+        ? getStatisticFromStatisticTypes()
+        : [],
+    competences: [],
+    fighting_competences: [],
 })
 
 const createInitialState = () => ({
-    phase: 'CREATE',
+    phase: 'CREATE', // 'CREATE' | 'PLAYERS'
     createForm: createInitialCreateForm(),
-    gamerForms: [createEmptyGamerForm()],
+    gamerForms: [createEmptyGamerForm(() => {})],
     createdGame: null,
     submitting: false,
     error: null,
@@ -55,10 +66,19 @@ class NewGame extends React.Component {
             this.handleStatisticFieldChange.bind(this)
         this.handleAddStatisticRow = this.handleAddStatisticRow.bind(this)
         this.handleRemoveStatisticRow = this.handleRemoveStatisticRow.bind(this)
+        this.getStatisticFromStatisticTypes =
+            this.getStatisticFromStatisticTypes.bind(this)
     }
 
     resetState(callback) {
         this.setState(createInitialState(), callback)
+    }
+
+    getStatisticFromStatisticTypes(currentGame) {
+        return (currentGame?.statisticTypes || []).map((statType) => ({
+            statisticType: statType,
+            value: '',
+        }))
     }
 
     handleCreateFieldChange(event) {
@@ -80,6 +100,11 @@ class NewGame extends React.Component {
         const { createForm } = this.state
         const trimmedName = createForm.name.trim()
         const trimmedLore = createForm.lore.trim()
+        const trimmedStatisticTypes = (createForm.statisticTypes || []).map(
+            (stat) => ({
+                name: stat.name.trim(),
+            }),
+        )
 
         if (!trimmedName) {
             this.setState({
@@ -97,11 +122,23 @@ class NewGame extends React.Component {
             return
         }
 
+        if (trimmedStatisticTypes.some((stat) => !stat.name)) {
+            this.setState({
+                error: 'Chaque statistique doit avoir un nom valide.',
+                success: null,
+            })
+            return
+        }
+
         this.setState({ submitting: true, error: null, success: null })
 
         try {
             const createdGame = await this.props
-                .createGame({ name: trimmedName, lore: trimmedLore })
+                .createGame({
+                    name: trimmedName,
+                    lore: trimmedLore,
+                    statisticTypes: trimmedStatisticTypes,
+                })
                 .unwrap()
 
             this.setState({
@@ -110,7 +147,11 @@ class NewGame extends React.Component {
                 submitting: false,
                 success:
                     'Partie créée avec succès ! Ajoutez maintenant vos joueurs.',
-                gamerForms: [createEmptyGamerForm()],
+                gamerForms: [
+                    createEmptyGamerForm(() =>
+                        this.getStatisticFromStatisticTypes(createdGame),
+                    ),
+                ],
             })
         } catch (creationError) {
             this.setState({
@@ -145,22 +186,19 @@ class NewGame extends React.Component {
         })
     }
 
-    handleStatisticFieldChange(gamerIndex, statisticIndex, field, value) {
+    handleStatisticFieldChange(gamerIndex, statisticIndex, value) {
         this.setState((prevState) => {
             const gamerForms = prevState.gamerForms.map((gamer, idx) => {
-                if (idx !== gamerIndex) {
-                    return gamer
-                }
+                if (idx !== gamerIndex) return gamer
 
                 const statistics = gamer.statistics || []
-                const sanitizedValue =
-                    field === 'value' ? value.replace(/[^0-9.,\-]/g, '') : value
+                const sanitizedValue = value.replace(/[^0-9.,\-]/g, '')
 
                 const updatedStatistics = statistics.map((stat, statIdx) =>
                     statIdx === statisticIndex
                         ? {
                               ...stat,
-                              [field]: sanitizedValue,
+                              value: sanitizedValue,
                           }
                         : stat,
                 )
@@ -179,49 +217,118 @@ class NewGame extends React.Component {
         })
     }
 
-    handleAddStatisticRow(gamerIndex) {
+    handleStatisticTypesFieldChange(statisticIndex, name, field) {
         this.setState((prevState) => {
-            const gamerForms = prevState.gamerForms.map((gamer, idx) =>
-                idx === gamerIndex
-                    ? {
-                          ...gamer,
-                          statistics: [
-                              ...(gamer.statistics || []),
-                              createEmptyStatistic(),
-                          ],
-                      }
-                    : gamer,
-            )
+            const createForm = prevState.createForm
 
-            return { gamerForms }
+            createForm.statisticTypes[statisticIndex] = {
+                [name]: field,
+            }
+
+            return {
+                createForm,
+                error: null,
+                success: null,
+            }
         })
     }
 
-    handleRemoveStatisticRow(gamerIndex, statisticIndex) {
+    handleAddStatisticRow() {
+        this.setState((prevState) => ({
+            createForm: {
+                ...prevState.createForm,
+                statisticTypes: [
+                    ...(prevState.createForm.statisticTypes || []),
+                    createEmptyStatisticType(),
+                ],
+            },
+            error: null,
+            success: null,
+        }))
+    }
+
+    handleAddCompetenceRow(gamerIndex, competenceField) {
         this.setState((prevState) => {
             const gamerForms = prevState.gamerForms.map((gamer, idx) => {
-                if (idx !== gamerIndex) {
-                    return gamer
-                }
+                if (idx !== gamerIndex) return gamer
 
-                const statistics = gamer.statistics || []
-                const filtered = statistics.filter(
-                    (_, statIdx) => statIdx !== statisticIndex,
+                const competences = gamer[competenceField] || []
+
+                return {
+                    ...gamer,
+                    [competenceField]: [...competences, createEmptyStatistic()],
+                }
+            })
+
+            return {
+                gamerForms,
+                error: null,
+                success: null,
+            }
+        })
+    }
+
+    handleRemoveStatisticRow(statisticIndex) {
+        this.setState((prevState) => ({
+            createForm: {
+                ...prevState.createForm,
+                statisticTypes: prevState.createForm.statisticTypes.filter(
+                    (_, idx) => idx !== statisticIndex,
+                ),
+            },
+        }))
+    }
+
+    handleCompetenceChange(
+        gamerIndex,
+        competenceIndex,
+        gamerField,
+        field,
+        value,
+    ) {
+        this.setState((prevState) => {
+            const gamerForms = prevState.gamerForms.map((gamer, idx) => {
+                if (idx !== gamerIndex) return gamer
+
+                const competences = gamer[gamerField] || []
+
+                const updatedCompetences = competences.map((comp, compIdx) =>
+                    compIdx === competenceIndex
+                        ? {
+                              ...comp,
+                              // Sanitize value to allow only numbers, commas, dots and minus sign
+                              [field]:
+                                  field === 'value'
+                                      ? value.replace(/[^0-9.,\-]/g, '')
+                                      : value,
+                          }
+                        : comp,
                 )
 
                 return {
                     ...gamer,
-                    statistics: filtered,
+                    [gamerField]: updatedCompetences,
                 }
             })
 
-            return { gamerForms }
+            return {
+                gamerForms,
+                error: null,
+                success: null,
+            }
         })
     }
 
     handleAddGamerRow() {
+        const { createdGame } = this.state
+
         this.setState((prevState) => ({
-            gamerForms: [...prevState.gamerForms, createEmptyGamerForm()],
+            gamerForms: [
+                ...prevState.gamerForms,
+                createEmptyGamerForm(() =>
+                    this.getStatisticFromStatisticTypes(createdGame),
+                ),
+            ],
         }))
     }
 
@@ -235,6 +342,25 @@ class NewGame extends React.Component {
                 (_, idx) => idx !== index,
             )
             return { gamerForms }
+        })
+    }
+
+    hasValidList(sanitizedGamers, gamerForms, field) {
+        return sanitizedGamers.some((gamer, index) => {
+            const competences = gamerForms[index][field] || []
+
+            return competences.some((comp) => {
+                console.log(comp)
+
+                const rawValue = String(comp.value ?? '').trim()
+
+                if (comp.name.trim() === '') return true
+                if (rawValue === '') return false
+
+                const numericValue = Number(rawValue.replace(',', '.'))
+
+                return rawValue === '' || Number.isNaN(numericValue)
+            })
         })
     }
 
@@ -252,22 +378,49 @@ class NewGame extends React.Component {
 
         const sanitizedGamers = gamerForms.map((gamer) => {
             const statistics = (gamer.statistics || []).filter((stat) => {
-                const name = (stat.name || '').trim()
                 const value = String(stat.value ?? '').trim()
-                return name !== '' || value !== ''
+                return value !== '' && stat.statisticType.id
+            })
+
+            const competences = (gamer.competences || []).filter((comp) => {
+                const value = String(comp.value ?? '').trim()
+                return comp.name.trim() !== '' && value !== ''
+            })
+
+            const fighting_competences = (
+                gamer.fighting_competences || []
+            ).filter((comp) => {
+                const value = String(comp.value ?? '').trim()
+                return value !== ''
             })
 
             const sanitizedStatistics = statistics.map((stat) => ({
-                name: (stat.name || '').trim(),
+                statisticType: stat.statisticType,
                 value: Number(String(stat.value ?? '').replace(',', '.')),
             }))
+
+            const sanitizedCompetences = competences.map((comp) => ({
+                name: comp.name.trim(),
+                value: Number(String(comp.value ?? '').replace(',', '.')),
+            }))
+
+            const sanitizedFightingCompetences = fighting_competences.map(
+                (comp) => ({
+                    name: comp.name.trim(),
+                    value: Number(String(comp.value ?? '').replace(',', '.')),
+                }),
+            )
 
             return {
                 name: gamer.name.trim(),
                 color: gamer.color.trim(),
                 lore: gamer.lore.trim(),
+                physical_description: gamer.physical_description.trim(),
+                personality: gamer.personality.trim(),
                 age: gamer.age ? Number(gamer.age) : NaN,
                 statistics: sanitizedStatistics,
+                competences: sanitizedCompetences,
+                fighting_competences: sanitizedFightingCompetences,
             }
         })
 
@@ -276,32 +429,38 @@ class NewGame extends React.Component {
                 !gamer.name ||
                 !gamer.color ||
                 !gamer.lore ||
+                !gamer.physical_description ||
+                !gamer.personality ||
                 Number.isNaN(gamer.age) ||
                 gamer.age <= 0,
         )
 
-        const hasInvalidStatistics = sanitizedGamers.some((gamer, index) => {
-            const stats = gamerForms[index].statistics || []
+        const hasInvalidStats = sanitizedGamers.some((gamer, index) => {
+            const statistics = gamerForms[index].statistics || []
 
-            return stats.some((stat, statIndex) => {
-                const name = (stat.name || '').trim()
+            return statistics.some((stat) => {
                 const rawValue = String(stat.value ?? '').trim()
 
-                if (name === '' && rawValue === '') {
-                    return false
-                }
+                if (rawValue === '') return false
 
                 const numericValue = Number(rawValue.replace(',', '.'))
 
-                return (
-                    name === '' || rawValue === '' || Number.isNaN(numericValue)
-                )
+                return rawValue === '' || Number.isNaN(numericValue)
             })
         })
 
-        if (hasInvalidGamer || hasInvalidStatistics) {
+        if (
+            hasInvalidGamer ||
+            hasInvalidStats ||
+            this.hasValidList(sanitizedGamers, gamerForms, 'competences') ||
+            this.hasValidList(
+                sanitizedGamers,
+                gamerForms,
+                'fighting_competences',
+            )
+        ) {
             this.setState({
-                error: 'Chaque joueur doit avoir un nom, une couleur, un âge positif, un lore et des statistiques valides (nom + valeur numérique).',
+                error: 'Chaque joueur doit avoir un nom, une couleur, un âge positif, un lore et des statistiques valides.',
                 success: null,
             })
             return
@@ -316,7 +475,21 @@ class NewGame extends React.Component {
                     gamer.statistics && gamer.statistics.length > 0
                         ? gamer.statistics
                         : undefined,
+                competences:
+                    gamer.competences && gamer.competences.length > 0
+                        ? gamer.competences
+                        : undefined,
+                fighting_competences:
+                    gamer.fighting_competences &&
+                    gamer.fighting_competences.length > 0
+                        ? gamer.fighting_competences
+                        : undefined,
             }))
+
+            console.log({
+                gameId: createdGame.id,
+                gamers: payload,
+            })
 
             const updatedGame = await this.props
                 .addGamersToGame({
@@ -325,9 +498,8 @@ class NewGame extends React.Component {
                 })
                 .unwrap()
 
-            if (typeof this.props.onCreated === 'function') {
+            if (typeof this.props.onCreated === 'function')
                 this.props.onCreated(updatedGame)
-            }
 
             this.resetState()
         } catch (saveError) {
@@ -407,6 +579,67 @@ class NewGame extends React.Component {
                             maxLength={800}
                         />
                     </label>
+
+                    <div className="new-game-statistics">
+                        <div className="new-game-statistics-header">
+                            <span>Statistiques</span>
+                            <button
+                                type="button"
+                                className="new-game-tertiary-button"
+                                onClick={() => this.handleAddStatisticRow()}
+                                disabled={isSubmitting}
+                            >
+                                + Ajouter une statistique
+                            </button>
+                        </div>
+
+                        {(createForm.statisticTypes || []).length === 0 && (
+                            <p className="new-game-statistics-empty">
+                                Ajoutez des attributs comme la Force ou le Mana
+                                pour cette partie.
+                            </p>
+                        )}
+
+                        {(createForm.statisticTypes || []).map(
+                            (statistic, statisticIndex) => (
+                                <div
+                                    key={statisticIndex}
+                                    className="new-game-statistics-row"
+                                >
+                                    <label className="new-game-field">
+                                        <span>Nom</span>
+                                        <input
+                                            className="new-game-input"
+                                            value={statistic.name}
+                                            onChange={(event) =>
+                                                this.handleStatisticTypesFieldChange(
+                                                    statisticIndex,
+                                                    'name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            placeholder="Force, Mana, Initiative…"
+                                            maxLength={50}
+                                            disabled={isSubmitting}
+                                        />
+                                    </label>
+
+                                    <button
+                                        type="button"
+                                        className="new-game-tertiary-button new-game-remove-statistic"
+                                        onClick={() =>
+                                            this.handleRemoveStatisticRow(
+                                                statisticIndex,
+                                            )
+                                        }
+                                        disabled={isSubmitting}
+                                    >
+                                        Retirer
+                                    </button>
+                                </div>
+                            ),
+                        )}
+                    </div>
 
                     {error && (
                         <div className="new-game-message new-game-message-error">
@@ -499,7 +732,6 @@ class NewGame extends React.Component {
 
                                 <label className="new-game-field">
                                     <span>Couleur</span>
-
                                     <div
                                         className="new-game-color-input-wrapper"
                                         style={{
@@ -543,6 +775,44 @@ class NewGame extends React.Component {
                             </div>
 
                             <label className="new-game-field">
+                                <span>Description physique</span>
+                                <textarea
+                                    className="new-game-input new-game-textarea-small"
+                                    value={gamer.physical_description}
+                                    onChange={(event) =>
+                                        this.handleGamerFieldChange(
+                                            index,
+                                            'physical_description',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={2}
+                                    maxLength={100}
+                                    placeholder="Décrivez l'apparence physique du personnage."
+                                    disabled={isSubmitting}
+                                />
+                            </label>
+
+                            <label className="new-game-field">
+                                <span>Traits de personnalité du joueur</span>
+                                <textarea
+                                    className="new-game-input new-game-textarea-small"
+                                    value={gamer.personality}
+                                    onChange={(event) =>
+                                        this.handleGamerFieldChange(
+                                            index,
+                                            'personality',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={2}
+                                    maxLength={100}
+                                    placeholder="Décrivez les traits de caractère du personnage."
+                                    disabled={isSubmitting}
+                                />
+                            </label>
+
+                            <label className="new-game-field">
                                 <span>Lore du joueur</span>
                                 <textarea
                                     className="new-game-input new-game-textarea"
@@ -562,27 +832,7 @@ class NewGame extends React.Component {
                             </label>
 
                             <div className="new-game-statistics">
-                                <div className="new-game-statistics-header">
-                                    <span>Statistiques</span>
-                                    <button
-                                        type="button"
-                                        className="new-game-tertiary-button"
-                                        onClick={() =>
-                                            this.handleAddStatisticRow(index)
-                                        }
-                                        disabled={isSubmitting}
-                                    >
-                                        + Ajouter une statistique
-                                    </button>
-                                </div>
-
-                                {(gamer.statistics || []).length === 0 && (
-                                    <p className="new-game-statistics-empty">
-                                        Ajoutez des attributs comme la Force ou
-                                        le Mana pour ce joueur.
-                                    </p>
-                                )}
-
+                                <span>Stats du joueur</span>
                                 {(gamer.statistics || []).map(
                                     (statistic, statisticIndex) => (
                                         <div
@@ -593,18 +843,12 @@ class NewGame extends React.Component {
                                                 <span>Nom</span>
                                                 <input
                                                     className="new-game-input"
-                                                    value={statistic.name}
-                                                    onChange={(event) =>
-                                                        this.handleStatisticFieldChange(
-                                                            index,
-                                                            statisticIndex,
-                                                            'name',
-                                                            event.target.value,
-                                                        )
+                                                    value={
+                                                        statistic.statisticType
+                                                            .name
                                                     }
-                                                    placeholder="Force, Mana, Initiative…"
+                                                    disabled
                                                     maxLength={50}
-                                                    disabled={isSubmitting}
                                                 />
                                             </label>
 
@@ -617,6 +861,151 @@ class NewGame extends React.Component {
                                                         this.handleStatisticFieldChange(
                                                             index,
                                                             statisticIndex,
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="10"
+                                                    maxLength={6}
+                                                    disabled={isSubmitting}
+                                                    inputMode="decimal"
+                                                />
+                                            </label>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+
+                            <div className="new-game-statistics">
+                                <div className="new-game-statistics-header">
+                                    <span>Compétences de combat du joueur</span>
+                                    <button
+                                        type="button"
+                                        className="new-game-tertiary-button"
+                                        onClick={() =>
+                                            this.handleAddCompetenceRow(
+                                                index,
+                                                'fighting_competences',
+                                            )
+                                        }
+                                        disabled={isSubmitting}
+                                    >
+                                        + Ajouter
+                                    </button>
+                                </div>
+                                {(gamer.fighting_competences || []).map(
+                                    (fc, statisticIndex) => (
+                                        <div
+                                            key={statisticIndex}
+                                            className="new-game-statistics-row"
+                                        >
+                                            <label className="new-game-field">
+                                                <span>Nom</span>
+                                                <input
+                                                    className="new-game-input"
+                                                    value={fc.name}
+                                                    maxLength={50}
+                                                    onChange={(event) =>
+                                                        this.handleCompetenceChange(
+                                                            index,
+                                                            statisticIndex,
+                                                            'fighting_competences',
+                                                            'name',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+
+                                            <label className="new-game-field">
+                                                <span>Valeur</span>
+                                                <input
+                                                    className="new-game-input"
+                                                    value={fc.value}
+                                                    onChange={(event) =>
+                                                        this.handleCompetenceChange(
+                                                            index,
+                                                            statisticIndex,
+                                                            'fighting_competences',
+                                                            'value',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="10"
+                                                    maxLength={6}
+                                                    disabled={isSubmitting}
+                                                    inputMode="decimal"
+                                                />
+                                            </label>
+
+                                            <button
+                                                type="button"
+                                                className="new-game-tertiary-button new-game-remove-statistic"
+                                                onClick={() =>
+                                                    this.handleRemoveStatisticRow(
+                                                        index,
+                                                        statisticIndex,
+                                                    )
+                                                }
+                                                disabled={isSubmitting}
+                                            >
+                                                Retirer
+                                            </button>
+                                        </div>
+                                    ),
+                                )}
+                            </div>
+
+                            <div className="new-game-statistics">
+                                <div className="new-game-statistics-header">
+                                    <span>Compétences du joueur</span>
+                                    <button
+                                        type="button"
+                                        className="new-game-tertiary-button"
+                                        onClick={() =>
+                                            this.handleAddCompetenceRow(
+                                                index,
+                                                'competences',
+                                            )
+                                        }
+                                        disabled={isSubmitting}
+                                    >
+                                        + Ajouter
+                                    </button>
+                                </div>
+                                {(gamer.competences || []).map(
+                                    (competence, statisticIndex) => (
+                                        <div
+                                            key={statisticIndex}
+                                            className="new-game-statistics-row"
+                                        >
+                                            <label className="new-game-field">
+                                                <span>Nom</span>
+                                                <input
+                                                    className="new-game-input"
+                                                    value={competence.name}
+                                                    maxLength={50}
+                                                    onChange={(event) =>
+                                                        this.handleCompetenceChange(
+                                                            index,
+                                                            statisticIndex,
+                                                            'competences',
+                                                            'name',
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+
+                                            <label className="new-game-field">
+                                                <span>Valeur</span>
+                                                <input
+                                                    className="new-game-input"
+                                                    value={competence.value}
+                                                    onChange={(event) =>
+                                                        this.handleCompetenceChange(
+                                                            index,
+                                                            statisticIndex,
+                                                            'competences',
                                                             'value',
                                                             event.target.value,
                                                         )

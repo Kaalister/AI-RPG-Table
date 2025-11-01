@@ -62,6 +62,11 @@
     resize: vertical;
 }
 
+.new-game-textarea-small {
+    min-height: 4rem;
+    resize: vertical;
+}
+
 .new-game-actions {
     display: flex;
     align-items: center;

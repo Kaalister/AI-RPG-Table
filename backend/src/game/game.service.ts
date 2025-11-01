@@ -37,13 +37,12 @@ export class GameService {
             throw new NotFoundException(`Game with id ${gameId} not found`)
         }
 
-        if (updateGameDto.name !== undefined) {
-            game.name = updateGameDto.name
-        }
+        if (updateGameDto.name !== undefined) game.name = updateGameDto.name
 
-        if (updateGameDto.lore !== undefined) {
-            game.lore = updateGameDto.lore
-        }
+        if (updateGameDto.lore !== undefined) game.lore = updateGameDto.lore
+
+        if (updateGameDto.statisticTypes)
+            game.statisticTypes = updateGameDto.statisticTypes
 
         if (updateGameDto.gamers) {
             const mappedGamers = updateGameDto.gamers.map((gamerDto) => {
@@ -78,7 +77,7 @@ export class GameService {
         return updatedGame
     }
 
-    async addGamer(gameId: string, gamer: CreateGamerDto) {
+    async addGamers(gameId: string, gamers: CreateGamerDto[]) {
         const currentGame = await this.gamesRepository.findOne({
             where: { id: gameId },
             relations: ['gamers', 'gamers.statistics'],
@@ -90,7 +89,7 @@ export class GameService {
 
         currentGame.gamers = [
             ...currentGame.gamers,
-            plainToInstance(Gamer, gamer),
+            ...gamers.map((gamer) => plainToInstance(Gamer, gamer)),
         ]
 
         return this.gamesRepository.save(currentGame)
