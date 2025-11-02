@@ -254,10 +254,12 @@ class ManagePlayers extends React.Component {
                     })
                     .unwrap()
             } else {
+                const gamers = game.gamers || []
+
                 await this.props
                     .addGamersToGame({
                         gameId: game.id,
-                        gamer: gamerForm,
+                        gamers: [gamerForm],
                     })
                     .unwrap()
             }
